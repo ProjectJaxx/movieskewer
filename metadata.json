@@ -1,0 +1,5 @@
+{
+  "name": "Movie Skewer",
+  "description": "An intelligent movie suggestion app powered by Gemini. Describe the type of movie you want to watch, specify a release year range, and get personalized recommendations complete with plot summaries and genres.",
+  "requestFramePermissions": []
+}
