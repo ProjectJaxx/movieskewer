@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { MovieSuggestions, SearchParams } from '../types';
+import { MediaSuggestions, SearchParams } from '../types';
 
 if (!process.env.API_KEY) {
   throw new Error("API_KEY environment variable is not set");
@@ -7,27 +7,40 @@ if (!process.env.API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-const movieSchema = {
+const mediaSchema = {
   type: Type.OBJECT,
   properties: {
     title: {
       type: Type.STRING,
-      description: 'The full title of the movie.',
+      description: 'The full title of the movie or TV show.',
     },
     year: {
       type: Type.INTEGER,
-      description: 'The year the movie was released.',
+      description: 'The year the movie or TV show was first released.',
     },
     plot: {
       type: Type.STRING,
-      description: 'A brief, engaging summary of the movie\'s plot.',
+      description: "A brief, engaging summary of the movie's plot.",
     },
     genre: {
       type: Type.STRING,
       description: 'The primary genre of the movie (e.g., Sci-Fi, Comedy, Drama).',
     },
+    posterUrl: {
+      type: Type.STRING,
+      description: "A direct URL to a high-quality poster image.",
+    },
+    actors: {
+        type: Type.ARRAY,
+        description: "A list of the main actors.",
+        items: { type: Type.STRING },
+    },
+    director: {
+        type: Type.STRING,
+        description: "The director (for movies) or the primary creator/showrunner (for TV shows).",
+    }
   },
-  required: ['title', 'year', 'plot', 'genre'],
+  required: ['title', 'year', 'plot', 'genre', 'posterUrl', 'actors', 'director'],
 };
 
 const responseSchema = {
@@ -35,33 +48,34 @@ const responseSchema = {
   properties: {
     top: {
       type: Type.ARRAY,
-      description: "The top 2 most relevant movie suggestions based on the user's criteria.",
-      items: movieSchema,
+      description: "The top 2 most relevant suggestions based on the user's criteria.",
+      items: mediaSchema,
     },
     random: {
       type: Type.ARRAY,
-      description: "3 additional, more varied or random movie suggestions that still fit the criteria.",
-      items: movieSchema,
+      description: "3 additional, more varied suggestions that still fit the criteria.",
+      items: mediaSchema,
     }
   },
   required: ['top', 'random'],
-  description: 'A list of movie suggestions categorized into top and random picks.',
+  description: 'A list of movie or TV show suggestions categorized into top and random picks.',
 };
 
 
-export const getMovieSuggestions = async (params: SearchParams): Promise<MovieSuggestions> => {
-  const { description, startYear, endYear } = params;
+export const getMediaSuggestions = async (params: SearchParams): Promise<MediaSuggestions> => {
+  const { description, startYear, endYear, mediaType } = params;
+  const mediaTypeString = mediaType === 'movie' ? 'movies' : 'TV shows';
 
   const prompt = `
-    Based on the following description, suggest some movies released between the years ${startYear} and ${endYear}.
+    Based on the following description, suggest some ${mediaTypeString} released between the years ${startYear} and ${endYear}.
     Description: "${description}"
 
-    Please provide a diverse list of movies that fit the description, structured as follows:
-    1.  Give me the top 2 best-fitting movie suggestions.
+    Please provide a diverse list of ${mediaTypeString} that fit the description, structured as follows:
+    1.  Give me the top 2 best-fitting suggestions.
     2.  Give me 3 other random, but still relevant, suggestions to provide variety.
 
-    For each movie, I need the title, release year, a short plot summary, and the main genre.
-    If you can only find one or two movies in total, that's okay, just return what you can find in the 'top' category and leave 'random' empty.
+    For each suggestion, I need the title, release year, a short plot summary, the main genre, the director (or creator for TV shows), a list of the top 3-4 main actors, and a direct URL for a high-quality poster image.
+    If you can only find one or two suggestions in total, that's okay, just return what you can find in the 'top' category and leave 'random' empty.
   `;
 
   try {
@@ -83,9 +97,9 @@ export const getMovieSuggestions = async (params: SearchParams): Promise<MovieSu
         throw new Error("AI response did not match the expected format.");
     }
 
-    return suggestions as MovieSuggestions;
+    return suggestions as MediaSuggestions;
   } catch (error) {
-    console.error("Error fetching movie suggestions:", error);
-    throw new Error("Failed to get movie suggestions from the AI. Please check your query or API key.");
+    console.error("Error fetching suggestions:", error);
+    throw new Error("Failed to get suggestions from the AI. Please check your query or API key.");
   }
 };
