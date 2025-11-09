@@ -4,8 +4,8 @@ import ThemeToggle from './ThemeToggle';
 interface HeaderProps {
     theme: 'light' | 'dark';
     toggleTheme: () => void;
-    watchlistCount: number;
-    onToggleWatchlist: () => void;
+    watchLaterCount: number;
+    onToggleWatchLater: () => void;
 }
 
 const FilmReelIcon = () => (
@@ -22,7 +22,7 @@ const WatchlistIcon = () => (
 );
 
 
-const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, watchlistCount, onToggleWatchlist }) => {
+const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, watchLaterCount, onToggleWatchLater }) => {
     return (
         <header className="text-center p-4 sm:p-6 relative">
             <div className="flex items-center justify-center gap-3 sm:gap-4">
@@ -36,14 +36,14 @@ const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, watchlistCount, onT
             </p>
              <div className="absolute top-4 right-4 flex items-center gap-2">
                 <button
-                    onClick={onToggleWatchlist}
+                    onClick={onToggleWatchLater}
                     className="relative p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-900 focus:ring-cyan-500 transition-colors duration-300"
-                    aria-label="Toggle watchlist"
+                    aria-label="Toggle Watch Later list"
                 >
                     <WatchlistIcon />
-                    {watchlistCount > 0 && (
+                    {watchLaterCount > 0 && (
                         <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
-                            {watchlistCount}
+                            {watchLaterCount}
                         </span>
                     )}
                 </button>

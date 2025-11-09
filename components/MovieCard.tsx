@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { MediaItem } from '../types';
 import StarRating from './StarRating';
 
@@ -24,61 +24,99 @@ const PlaceholderIcon = () => (
     </svg>
 );
 
+const BigPlayIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-20 w-20 text-white/80 group-hover:text-white group-hover:scale-110 transition-transform duration-300" viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8.118v3.764a1 1 0 001.555.832l3.197-1.882a1 1 0 000-1.664l-3.197-1.882z" clipRule="evenodd" />
+    </svg>
+);
+
+const CloseIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+);
+
+
 const MovieCard: React.FC<MovieCardProps> = ({ movie }) => {
     const [imgError, setImgError] = useState(false);
     const [userRating, setUserRating] = useState(0);
-    const [isSaved, setIsSaved] = useState(false);
+    const [isAdded, setIsAdded] = useState(false);
+    const [isTrailerVisible, setIsTrailerVisible] = useState(false);
 
-    // Check for saved rating and watchlist status on mount
+    // Check for saved rating and watch later status on mount
     useEffect(() => {
         try {
             // Check rating
-            const ratingsStr = localStorage.getItem('mediaRatings');
-            if (ratingsStr) {
-                const ratings = JSON.parse(ratingsStr);
-                setUserRating(ratings[movie.title] || 0);
+            const ratingsJson = localStorage.getItem('mediaRatings');
+            if (ratingsJson) {
+                const allRatings = JSON.parse(ratingsJson);
+                setUserRating(allRatings[movie.title] || 0);
             }
 
-            // Check watchlist
-            const watchlistStr = localStorage.getItem('watchlist');
-            if (watchlistStr) {
-                const watchlist = JSON.parse(watchlistStr);
-                setIsSaved(!!watchlist[movie.title]);
+            // Check watch later list
+            const watchLaterStr = localStorage.getItem('watchLaterList');
+            if (watchLaterStr) {
+                const watchLaterList = JSON.parse(watchLaterStr);
+                setIsAdded(watchLaterList.includes(movie.title));
             }
         } catch (e) {
             console.error("Failed to parse data from localStorage", e);
         }
     }, [movie.title]);
 
+    const trailerEmbedUrl = useMemo((): string | null => {
+        const url = movie.trailerUrl;
+        if (!url) return null;
+        try {
+            const urlObj = new URL(url);
+            let videoId: string | null = null;
+
+            if (urlObj.hostname.includes('youtube.com')) {
+                videoId = urlObj.searchParams.get('v');
+            } else if (urlObj.hostname.includes('youtu.be')) {
+                videoId = urlObj.pathname.slice(1);
+            }
+            
+            if (videoId) {
+                return `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+            }
+        } catch (error) {
+            console.error('Invalid trailer URL:', url, error);
+        }
+        return null;
+    }, [movie.trailerUrl]);
+
     const handleRatingChange = (newRating: number) => {
         setUserRating(newRating);
         try {
-            const ratingsStr = localStorage.getItem('mediaRatings');
-            const ratings = ratingsStr ? JSON.parse(ratingsStr) : {};
-            ratings[movie.title] = newRating;
-            localStorage.setItem('mediaRatings', JSON.stringify(ratings));
+            const ratingsJson = localStorage.getItem('mediaRatings');
+            const allRatings = ratingsJson ? JSON.parse(ratingsJson) : {};
+            allRatings[movie.title] = newRating;
+            localStorage.setItem('mediaRatings', JSON.stringify(allRatings));
         } catch (e) {
             console.error("Failed to save rating to localStorage", e);
         }
     };
     
-    const handleToggleWatchlist = () => {
+    const handleToggleWatchLater = () => {
         try {
-            const watchlistStr = localStorage.getItem('watchlist');
-            const watchlist = watchlistStr ? JSON.parse(watchlistStr) : {};
-            const newSavedState = !isSaved;
+            const listStr = localStorage.getItem('watchLaterList');
+            let list = listStr ? JSON.parse(listStr) : [];
+            const newAddedState = !isAdded;
 
-            if (newSavedState) {
-                watchlist[movie.title] = movie;
+            if (newAddedState) {
+                if (!list.includes(movie.title)) {
+                    list.push(movie.title);
+                }
             } else {
-                delete watchlist[movie.title];
+                list = list.filter((title: string) => title !== movie.title);
             }
             
-            localStorage.setItem('watchlist', JSON.stringify(watchlist));
-            setIsSaved(newSavedState);
+            localStorage.setItem('watchLaterList', JSON.stringify(list));
+            setIsAdded(newAddedState);
             window.dispatchEvent(new CustomEvent('watchlistUpdated'));
         } catch (e) {
-            console.error("Failed to update watchlist in localStorage", e);
+            console.error("Failed to update watch later list in localStorage", e);
         }
     };
 
@@ -100,62 +138,115 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie }) => {
         }
     };
 
-    return (
-        <div className="bg-white dark:bg-gray-800/70 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:border-cyan-500 hover:scale-[1.03] transition-all duration-300 flex flex-col h-full">
-             <div className="relative aspect-[2/3] w-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                {movie.posterUrl && !imgError ? (
-                    <img 
-                        src={movie.posterUrl} 
-                        alt={`Poster for ${movie.title}`} 
-                        className="w-full h-full object-cover" 
-                        onError={() => setImgError(true)} 
-                    />
-                ) : (
-                    <PlaceholderIcon />
-                )}
-            </div>
-            
-            <div className="p-6 flex flex-col flex-grow">
-                <div className="flex-grow">
-                     <div className="flex justify-between items-start gap-4">
-                        <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">{movie.title}</h3>
-                        <span className="text-lg font-semibold text-cyan-600 dark:text-cyan-400 bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded-full shrink-0">{movie.year}</span>
-                    </div>
-                    <p className="text-sm font-medium text-cyan-700 dark:text-cyan-200 mb-4">{movie.genre}</p>
-                    <p className="text-gray-600 dark:text-gray-300 leading-relaxed mb-4">{movie.plot}</p>
-                    
-                    <div className="space-y-2 text-sm text-gray-500 dark:text-gray-400">
-                        <p><span className="font-semibold text-gray-700 dark:text-gray-200">Director:</span> {movie.director}</p>
-                        <p><span className="font-semibold text-gray-700 dark:text-gray-200">Starring:</span> {movie.actors.join(', ')}</p>
-                    </div>
-                </div>
+    const handleImageError = () => {
+        console.error(`Failed to load image for "${movie.title}" at URL: ${movie.posterUrl}`);
+        setImgError(true);
+    };
 
-                <div className="mt-6 space-y-4">
-                    <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                        <p className="text-center text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Rate this title</p>
-                        <StarRating rating={userRating} onRatingChange={handleRatingChange} />
+    return (
+        <>
+            <div className="bg-white dark:bg-gray-800/70 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:border-cyan-500 hover:scale-[1.03] transition-all duration-300 flex flex-col h-full">
+                <div className="relative group aspect-[2/3] w-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                    {movie.posterUrl && !imgError ? (
+                        <img 
+                            src={movie.posterUrl} 
+                            alt={`Poster for ${movie.title}`} 
+                            className="w-full h-full object-cover" 
+                            onError={handleImageError} 
+                        />
+                    ) : (
+                        <div className="flex flex-col items-center justify-center text-center p-4">
+                            <PlaceholderIcon />
+                            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Image not available</p>
+                        </div>
+                    )}
+                     {trailerEmbedUrl && (
+                        <div 
+                            className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 cursor-pointer" 
+                            onClick={() => setIsTrailerVisible(true)}
+                        >
+                            <button
+                                className="focus:outline-none"
+                                aria-label={`Play trailer for ${movie.title}`}
+                            >
+                                <BigPlayIcon />
+                            </button>
+                        </div>
+                    )}
+                </div>
+                
+                <div className="p-6 flex flex-col flex-grow">
+                    <div className="flex-grow">
+                        <div className="flex justify-between items-start gap-4">
+                            <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">{movie.title}</h3>
+                            <span className="text-lg font-semibold text-cyan-600 dark:text-cyan-400 bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded-full shrink-0">{movie.year}</span>
+                        </div>
+                        <p className="text-sm font-medium text-cyan-700 dark:text-cyan-200 mb-4">{movie.genre}</p>
+                        <p className="text-gray-600 dark:text-gray-300 leading-relaxed mb-4">{movie.plot}</p>
+                        
+                        <div className="space-y-2 text-sm text-gray-500 dark:text-gray-400">
+                            <p><span className="font-semibold text-gray-700 dark:text-gray-200">Director:</span> {movie.director}</p>
+                            <p><span className="font-semibold text-gray-700 dark:text-gray-200">Starring:</span> {movie.actors.join(', ')}</p>
+                        </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                        <button
-                            onClick={handleToggleWatchlist}
-                            className="w-full flex items-center justify-center gap-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-cyan-700 dark:text-cyan-300 font-semibold py-2 px-4 rounded-lg transition duration-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
-                            aria-label={isSaved ? `Remove ${movie.title} from watchlist` : `Save ${movie.title} to watchlist`}
-                        >
-                            <BookmarkIcon saved={isSaved} />
-                            <span>{isSaved ? 'Saved' : 'Save'}</span>
-                        </button>
-                        <button
-                            onClick={handleShare}
-                            className="w-full flex items-center justify-center gap-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-cyan-700 dark:text-cyan-300 font-semibold py-2 px-4 rounded-lg transition duration-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
-                            aria-label={`Share details for ${movie.title}`}
-                        >
-                            <ShareIcon />
-                            <span>Share</span>
-                        </button>
+
+                    <div className="mt-6 space-y-4">
+                        <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                            <p className="text-center text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Rate this title</p>
+                            <StarRating rating={userRating} onRatingChange={handleRatingChange} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                            <button
+                                onClick={handleToggleWatchLater}
+                                className="w-full flex items-center justify-center gap-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-cyan-700 dark:text-cyan-300 font-semibold py-2 px-4 rounded-lg transition duration-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+                                aria-label={isAdded ? `Remove ${movie.title} from watch later list` : `Add ${movie.title} to watch later list`}
+                            >
+                                <BookmarkIcon saved={isAdded} />
+                                <span>{isAdded ? 'Added' : 'Watch Later'}</span>
+                            </button>
+                            <button
+                                onClick={handleShare}
+                                className="w-full flex items-center justify-center gap-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-cyan-700 dark:text-cyan-300 font-semibold py-2 px-4 rounded-lg transition duration-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+                                aria-label={`Share details for ${movie.title}`}
+                            >
+                                <ShareIcon />
+                                <span>Share</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+
+            {isTrailerVisible && trailerEmbedUrl && (
+                <div 
+                    className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex justify-center items-center p-4 animate-fade-in"
+                    onClick={() => setIsTrailerVisible(false)}
+                    aria-modal="true"
+                    role="dialog"
+                >
+                    <div 
+                        className="relative w-full max-w-4xl aspect-video bg-black rounded-lg shadow-2xl" 
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <iframe
+                            className="w-full h-full rounded-lg"
+                            src={trailerEmbedUrl}
+                            title={`Trailer for ${movie.title}`}
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            allowFullScreen
+                        ></iframe>
+                        <button
+                            onClick={() => setIsTrailerVisible(false)}
+                            className="absolute -top-3 -right-3 md:-top-5 md:-right-5 p-2 rounded-full text-white bg-gray-900/80 hover:bg-gray-700/80 focus:outline-none focus:ring-2 focus:ring-white"
+                            aria-label="Close trailer"
+                        >
+                            <CloseIcon />
+                        </button>
+                    </div>
+                </div>
+            )}
+        </>
     );
 };
 
