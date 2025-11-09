@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { MediaSuggestions, SearchParams, SuggestionFlavor } from './types';
 import { getMediaSuggestions } from './services/geminiService';
 import Header from './components/Header';
@@ -86,6 +86,19 @@ const App: React.FC = () => {
         return () => window.removeEventListener('watchlistUpdated', updateCount);
     }, []);
 
+    const backgroundClass = useMemo(() => {
+        switch (flavor) {
+            case 'obscure':
+                return 'bg-slate-100 dark:bg-slate-900';
+            case 'international':
+                return 'bg-amber-50 dark:bg-stone-900';
+            case 'top-rated':
+                return 'bg-zinc-100 dark:bg-zinc-900';
+            default:
+                return 'bg-gray-100 dark:bg-gray-900';
+        }
+    }, [flavor]);
+
 
     const toggleTheme = () => {
         setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
@@ -123,7 +136,7 @@ const App: React.FC = () => {
     const hasSuggestions = suggestions && (suggestions.top.length > 0 || suggestions.random.length > 0);
 
     return (
-        <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white font-sans">
+        <div className={`min-h-screen text-gray-800 dark:text-white font-sans transition-colors duration-500 ${backgroundClass}`}>
             <div className="container mx-auto px-4 py-8">
                 <Header 
                     theme={theme} 
